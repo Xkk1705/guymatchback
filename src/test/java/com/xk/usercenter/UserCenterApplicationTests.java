@@ -3,9 +3,11 @@ package com.xk.usercenter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.xk.usercenter.model.domain.User;
 import com.xk.usercenter.service.UserService;
+import com.xk.usercenter.service.impl.UserServiceImpl;
 import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
@@ -15,7 +17,11 @@ import java.util.List;
 @SpringBootTest
 class UserCenterApplicationTests {
     @Resource
+    private StringRedisTemplate stringRedisTemplate;
+    @Resource
     private UserService userService;
+    @Resource
+    private UserServiceImpl userServiceImpl;
 
     @Test
     void addUserTest() {
@@ -50,13 +56,20 @@ class UserCenterApplicationTests {
     @Test
     void testSearchUserByTags() {
         List<String> strings = new ArrayList<>();
-        strings.add("java");
-        strings.add("c++");
+        strings.add("student");
 
-        List<User> users = userService.searchUserByTags(strings);
-        Assert.assertEquals(users.size(),2);
+//        List<User> users = userService.searchUserByTags(strings);
+        List<User> users = userServiceImpl.searchUsersByTags1(strings);
+        Assert.assertEquals(users.size(),1);
 
     }
+
+    @Test
+    void testRedisConnect() {
+        stringRedisTemplate.opsForValue().set("test","test");
+
+    }
+
 
 
 

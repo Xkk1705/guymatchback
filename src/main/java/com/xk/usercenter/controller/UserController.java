@@ -1,5 +1,7 @@
 package com.xk.usercenter.controller;
 
+import java.util.Date;
+
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xk.usercenter.common.BaseResponse;
@@ -15,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import javax.websocket.server.PathParam;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -91,7 +92,7 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    public List<User> searchUser(@PathParam("username") String username, HttpServletRequest request) {
+    public List<User> searchUser(@RequestParam("username") String username, HttpServletRequest request) {
         //鉴权
         if (!isAdmin(request)) {
             return new ArrayList<>();
@@ -106,8 +107,19 @@ public class UserController {
 
     }
 
+    @GetMapping("/search/tags")
+    public BaseResponse<List<User>> searchTags(@RequestParam("tagNameList") List<String> tagNameList) {
+        if (tagNameList == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        List<User> users = userService.searchUserByTags(tagNameList);
+
+        return ResultUtil.success(users);
+    }
+
+
     @GetMapping("/rule")
-    public BaseResponse<Page> SearchPageUser(@PathParam("current") Long current, @PathParam("pageSize") Long pageSize, HttpServletRequest request) {
+    public BaseResponse<Page> SearchPageUser(@RequestParam("current") Long current, @RequestParam("pageSize") Long pageSize, HttpServletRequest request) {
         //鉴权
 //        if (!isAdmin(request)) {
 //            throw new BusinessException(ErrorCode.NOT_LOGIN);
@@ -119,7 +131,7 @@ public class UserController {
     }
 
     @PostMapping("/delete")
-    public boolean searchUser(@RequestBody Long id, HttpServletRequest request) {
+    public boolean removeUser(@RequestBody Long id, HttpServletRequest request) {
 
         if (isAdmin(request)) {
             return false;
@@ -139,15 +151,31 @@ public class UserController {
      */
     @GetMapping("/current")
     public BaseResponse<User> getCurrentUser(HttpServletRequest request) {
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATUS);
-        User currentUser = (User) userObj;
-        if (currentUser == null) {
-            return null;
-        }
+        User currentUser = userService.isLogin(request);// 没有登录抛出异常 反之返回登录信息
         // todo 校验用户是否合法
         User user = userService.getById(currentUser.getId());
         User safetyUser = userService.getSafetyUser(user);
         return ResultUtil.success(safetyUser);
+    }
+
+    @PostMapping("/update")
+    public BaseResponse<Integer> updateUserMessage(@RequestBody User user, HttpServletRequest request) {
+        if (user == null) {
+            // 判断是否有修改的信息
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        String username = user.getUsername();
+        String avatarUrl = user.getAvatarUrl();
+        Integer gender = user.getGender();
+        String phone = user.getPhone();
+        String email = user.getEmail();
+        String tags = user.getTags();
+        if (StringUtils.isAllBlank(username, avatarUrl, gender.toString(), phone, email, tags)) {
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        User oldUser = userService.isLogin(request);
+        return userService.updateUserMessage(user, oldUser);
+
     }
 
 

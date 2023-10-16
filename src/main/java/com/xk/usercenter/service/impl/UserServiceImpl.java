@@ -12,20 +12,21 @@ import com.xk.usercenter.exception.BusinessException;
 import com.xk.usercenter.model.domain.User;
 import com.xk.usercenter.service.UserService;
 import com.xk.usercenter.mapper.UserMapper;
+import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.xk.usercenter.constant.UserConstant.ADMIN_ROLE;
 import static com.xk.usercenter.constant.UserConstant.USER_LOGIN_STATUS;
 
 /**
@@ -34,6 +35,8 @@ import static com.xk.usercenter.constant.UserConstant.USER_LOGIN_STATUS;
 @Service
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+    @Resource
+    private UserMapper userMapper;
 
     public static final String SLAT = "xukang";
 
@@ -223,7 +226,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }.getType();
 //        List<User> userList = users.stream().filter(user -> {
 //            String tagStr = user.getTags();
-//            if (StringUtils.isBlank(tagStr)) {
+//            if (StringUtils.isBlank( tagStr)) {
 //                return false;
 //            }
 //            List<String> tagSet = gson.fromJson(tagStr, type);// 获取到每个所拥有的标签
@@ -257,6 +260,61 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         return userList;
     }
+
+    @Override
+    public User isLogin(HttpServletRequest request) {
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATUS);
+        User currentUser = (User) userObj;
+        if (currentUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        return currentUser;
+    }
+
+    @Override
+    public BaseResponse<Integer> updateUserMessage(User user, User oldUser) {
+        long id = user.getId();
+        if (user.getId()<0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        // 是否为管理员
+        if (oldUser.getUserRole() == ADMIN_ROLE) {
+            int count = userMapper.updateById(user);
+            return ResultUtil.success(count);
+        }
+        // 是否为当前用户
+        if (oldUser.getId() != user.getId()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        int count = userMapper.updateById(user);
+        return ResultUtil.success(count);
+    }
+
+
+    public List<User> searchUsersByTags1(List<String> tagNameList) {
+        if (CollectionUtils.isEmpty(tagNameList)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        // 1. 先查询所有用户
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        List<User> userList = userMapper.selectList(queryWrapper);
+        Gson gson = new Gson();
+        // 2. 在内存中判断是否包含要求的标签
+        return userList.stream().filter(user -> {
+            String tagsStr = user.getTags();
+            Set<String> tempTagNameSet = gson.fromJson(tagsStr, new TypeToken<Set<String>>() {
+            }.getType());
+            tempTagNameSet = Optional.ofNullable(tempTagNameSet).orElse(new HashSet<>());
+            for (String tagName : tagNameList) {
+                if (!tempTagNameSet.contains(tagName)) {
+                    return false;
+                }
+            }
+            return true;
+        }).map(this::getSafetyUser).collect(Collectors.toList());
+    }
+
+
 }
 
 
