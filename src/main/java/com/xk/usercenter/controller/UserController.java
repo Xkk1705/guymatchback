@@ -118,17 +118,17 @@ public class UserController {
     }
 
 
-    @GetMapping("/rule")
-    public BaseResponse<Page> SearchPageUser(@RequestParam("current") Long current, @RequestParam("pageSize") Long pageSize, HttpServletRequest request) {
-        //鉴权
-//        if (!isAdmin(request)) {
-//            throw new BusinessException(ErrorCode.NOT_LOGIN);
-//        }
-
-        // 用户脱敏
-        return userService.selectUserPage(current, pageSize);
-
-    }
+//    @GetMapping("/rule")
+//    public BaseResponse<Page> SearchPageUser(@RequestParam("current") Long current, @RequestParam("pageSize") Long pageSize, HttpServletRequest request) {
+//        //鉴权
+////        if (!isAdmin(request)) {
+////            throw new BusinessException(ErrorCode.NOT_LOGIN);
+////        }
+//
+//        // 用户脱敏
+//        return userService.selectUserPage(current, pageSize);
+//
+//    }
 
     @PostMapping("/delete")
     public boolean removeUser(@RequestBody Long id, HttpServletRequest request) {
@@ -176,6 +176,16 @@ public class UserController {
         User oldUser = userService.isLogin(request);
         return userService.updateUserMessage(user, oldUser);
 
+    }
+
+    @GetMapping("/recommend")
+    public BaseResponse<Page<User>> searchTageUserPage(@RequestParam("currentPage") int currentPage,
+                                                       @RequestParam("pageSize") int pageSize,
+                                                       HttpServletRequest request) {
+        if (request.getSession().getAttribute(USER_LOGIN_STATUS) == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        return userService.searchTageUserPage(currentPage, pageSize, request);
     }
 
 

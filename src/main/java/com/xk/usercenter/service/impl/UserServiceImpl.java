@@ -12,9 +12,10 @@ import com.xk.usercenter.exception.BusinessException;
 import com.xk.usercenter.model.domain.User;
 import com.xk.usercenter.service.UserService;
 import com.xk.usercenter.mapper.UserMapper;
-import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
@@ -23,6 +24,7 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -37,6 +39,10 @@ import static com.xk.usercenter.constant.UserConstant.USER_LOGIN_STATUS;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
+
 
     public static final String SLAT = "xukang";
 
@@ -274,7 +280,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public BaseResponse<Integer> updateUserMessage(User user, User oldUser) {
         long id = user.getId();
-        if (user.getId()<0) {
+        if (user.getId() < 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         // 是否为管理员
@@ -288,6 +294,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         int count = userMapper.updateById(user);
         return ResultUtil.success(count);
+    }
+
+    @Override
+    public BaseResponse<Page<User>> searchTageUserPage(int currentPage, int pageSize, HttpServletRequest request) {
+        User user = (User) request.getSession().getAttribute(USER_LOGIN_STATUS);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        long id = user.getId();
+        String key = "cache:xk:user:"+id;
+        ValueOperations<String, Object> operations = redisTemplate.opsForValue();
+        Page<User> userList = (Page<User>) operations.get(key);
+        if (operations.get(key) != null) {
+            return ResultUtil.success(userList);
+        }
+        Page<User> userPage = new Page<>(currentPage, pageSize);
+        userList = this.page(userPage, new QueryWrapper<>());
+        operations.set(key,userList, 12,TimeUnit.HOURS);
+        return ResultUtil.success(userList);
     }
 
 

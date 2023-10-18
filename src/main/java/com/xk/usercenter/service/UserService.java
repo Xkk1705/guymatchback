@@ -76,4 +76,13 @@ public interface UserService extends IService<User> {
      * @return
      */
     BaseResponse<Integer> updateUserMessage(User user, User oldUser);
+
+    /**
+     * 分页查询用户信息
+     * @param currentPage
+     * @param pageSize
+     * @param request
+     * @return
+     */
+    BaseResponse<Page<User>> searchTageUserPage(int currentPage,int pageSize,HttpServletRequest request);
 }

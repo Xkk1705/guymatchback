@@ -66,8 +66,9 @@ class UserCenterApplicationTests {
 
     @Test
     void testRedisConnect() {
-        stringRedisTemplate.opsForValue().set("test","test");
-
+//        stringRedisTemplate.opsForValue().set("test","test");
+        int i = 100 % 1000;
+        System.out.println(i);
     }
 
 
