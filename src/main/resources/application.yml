@@ -13,7 +13,7 @@ spring:
       namespace: spring:sssion
     store-type: redis
   redis:
-    host: localhost
+    host: 127.0.0.1
     port: 6379
     database: 1
 server:

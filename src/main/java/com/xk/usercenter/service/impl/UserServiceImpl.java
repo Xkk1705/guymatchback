@@ -311,7 +311,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         Page<User> userPage = new Page<>(currentPage, pageSize);
         userList = this.page(userPage, new QueryWrapper<>());
-        operations.set(key,userList, 12,TimeUnit.HOURS);
+        operations.set(key,userList, 5,TimeUnit.HOURS);
         return ResultUtil.success(userList);
     }
 

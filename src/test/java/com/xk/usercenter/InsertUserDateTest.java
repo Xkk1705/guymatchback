@@ -2,7 +2,10 @@ package com.xk.usercenter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import com.xk.usercenter.model.domain.User;
 import com.xk.usercenter.service.UserService;
@@ -19,6 +22,8 @@ public class InsertUserDateTest {
 
     @Test
     public void insetUserDateTest() {
+        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(15, 1000, 10000, TimeUnit.SECONDS, new ArrayBlockingQueue<>(10000));
+
         List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
 
         User user = new User();
@@ -49,7 +54,7 @@ public class InsertUserDateTest {
                 userService.saveBatch(list, 1000);
                 String name = Thread.currentThread().getName();
                 System.out.println("当前线程Name："+ name);
-            });
+            },poolExecutor);
             completableFutures.add(future);
         }
         CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[]{})).join();
