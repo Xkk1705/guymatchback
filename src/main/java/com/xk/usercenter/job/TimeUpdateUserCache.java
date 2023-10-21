@@ -2,7 +2,6 @@ package com.xk.usercenter.job;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.xk.usercenter.config.RedissonConfig;
 import com.xk.usercenter.model.domain.User;
 import com.xk.usercenter.service.UserService;
 import lombok.extern.slf4j.Slf4j;
