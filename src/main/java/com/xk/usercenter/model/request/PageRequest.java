@@ -5,7 +5,7 @@ import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class PageRequest extends TeamQuery{
+public class PageRequest extends TeamQueryRequest {
     int current;
     int PageSize;
 }

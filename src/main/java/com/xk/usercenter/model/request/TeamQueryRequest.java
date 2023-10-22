@@ -4,7 +4,7 @@ import lombok.Data;
 import java.util.Date;
 
 @Data
-public class TeamQuery{
+public class TeamQueryRequest {
 
     /**
      * 队伍名称

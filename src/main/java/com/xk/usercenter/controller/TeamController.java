@@ -8,7 +8,8 @@ import com.xk.usercenter.common.ResultUtil;
 import com.xk.usercenter.exception.BusinessException;
 import com.xk.usercenter.model.domain.Team;
 import com.xk.usercenter.model.domain.User;
-import com.xk.usercenter.model.request.TeamQuery;
+import com.xk.usercenter.model.request.TeamQueryRequest;
+import com.xk.usercenter.model.request.TeamUpdateRequest;
 import com.xk.usercenter.model.vo.TeamVo;
 import com.xk.usercenter.service.TeamService;
 import org.springframework.beans.BeanUtils;
@@ -28,12 +29,12 @@ public class TeamController {
     private TeamService teamService;
 
     @PostMapping("/add")
-    public BaseResponse<Long> addTeam(@RequestBody TeamQuery teamQuery, HttpServletRequest request) {
-        if (teamQuery == null) {
+    public BaseResponse<Long> CreateTeam(@RequestBody TeamQueryRequest teamQueryRequest, HttpServletRequest request) {
+        if (teamQueryRequest == null) {
             throw new BusinessException(ErrorCode.NULL_ERROR);
         }
         Team team = new Team();
-        BeanUtils.copyProperties(teamQuery,team);
+        BeanUtils.copyProperties(teamQueryRequest,team);
         User loginUser = (User)request.getSession().getAttribute(USER_LOGIN_STATUS);
         return teamService.CreateTeam(team,loginUser);
 
@@ -63,29 +64,30 @@ public class TeamController {
     }
 
     @PostMapping("/update")
-    public BaseResponse<Boolean> updateTeam(@RequestBody Team team) {
-        if (team == null) {
+    public BaseResponse<Boolean> updateTeam(@RequestBody TeamUpdateRequest teamUpdateRequest,HttpServletRequest request) {
+        if (teamUpdateRequest == null) {
             throw new BusinessException(ErrorCode.NULL_ERROR);
         }
 
-        boolean isSave = teamService.save(team);
-        if (isSave) {
+        boolean isUpdate = teamService.updateTeam(teamUpdateRequest,request);
+        if (!isUpdate) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR);
         }
-        return ResultUtil.success(isSave);
+        return ResultUtil.success(isUpdate);
 
     }
 
-//    @GetMapping("/list")
-//    public BaseResponse<List<Team>> searchTeamList() {
-//        QueryWrapper<Team> wrapper = new QueryWrapper<>();
-//        List<Team> list = teamService.list(wrapper);
-//        return ResultUtil.success(list);
-//
-//    }
+    @PostMapping("/jointeam")
+    public BaseResponse<Boolean> joinTeam(Long teamid,String password,HttpServletRequest request) {
+        if (teamid == null || teamid < 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        return teamService.joinTeam(teamid,password,request);
+
+    }
     @GetMapping("/list")
-    public BaseResponse<List<TeamVo>> searchTeamList(TeamQuery teamQuery, HttpServletRequest request) {
-        return teamService.searchTeamList(teamQuery,request);
+    public BaseResponse<List<TeamVo>> searchTeamList(TeamQueryRequest teamQueryRequest, HttpServletRequest request) {
+        return teamService.searchTeamList(teamQueryRequest,request);
 
     }
 

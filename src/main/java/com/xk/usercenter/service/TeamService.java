@@ -5,7 +5,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.xk.usercenter.common.BaseResponse;
 import com.xk.usercenter.model.domain.Team;
 import com.xk.usercenter.model.domain.User;
-import com.xk.usercenter.model.request.TeamQuery;
+import com.xk.usercenter.model.request.TeamQueryRequest;
+import com.xk.usercenter.model.request.TeamUpdateRequest;
 import com.xk.usercenter.model.vo.TeamVo;
 
 import javax.servlet.http.HttpServletRequest;
@@ -27,11 +28,11 @@ public interface TeamService extends IService<Team> {
 
     /**
      * 根据条件模糊查询队伍
-     * @param teamQuery
+     * @param teamQueryRequest
      * @param request
      * @return
      */
-    BaseResponse<List<TeamVo>> searchTeamList(TeamQuery teamQuery, HttpServletRequest request);
+    BaseResponse<List<TeamVo>> searchTeamList(TeamQueryRequest teamQueryRequest, HttpServletRequest request);
 
     /**
      * 根据teamid查询队伍人员信息 和房间信息
@@ -40,4 +41,8 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     BaseResponse<TeamVo>searchTeamListWithTeamUser(Long teamid, HttpServletRequest request);
+
+    boolean updateTeam(TeamUpdateRequest teamUpdateRequest, HttpServletRequest request);
+
+    BaseResponse<Boolean> joinTeam(Long teamid, String password, HttpServletRequest request);
 }
