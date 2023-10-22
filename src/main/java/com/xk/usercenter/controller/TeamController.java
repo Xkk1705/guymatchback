@@ -9,6 +9,7 @@ import com.xk.usercenter.exception.BusinessException;
 import com.xk.usercenter.model.domain.Team;
 import com.xk.usercenter.model.domain.User;
 import com.xk.usercenter.model.request.TeamQuery;
+import com.xk.usercenter.model.vo.TeamVo;
 import com.xk.usercenter.service.TeamService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
@@ -75,21 +76,24 @@ public class TeamController {
 
     }
 
-    @GetMapping("/list")
-    public BaseResponse<List<Team>> searchTeamList() {
-        QueryWrapper<Team> wrapper = new QueryWrapper<>();
-        List<Team> list = teamService.list(wrapper);
-        return ResultUtil.success(list);
-
-    }
-//    @GetMapping("/list1")
-//    public BaseResponse<List<Team>> searchTeamListTest(TeamQuery teamQuery) {
+//    @GetMapping("/list")
+//    public BaseResponse<List<Team>> searchTeamList() {
 //        QueryWrapper<Team> wrapper = new QueryWrapper<>();
 //        List<Team> list = teamService.list(wrapper);
 //        return ResultUtil.success(list);
 //
 //    }
-//
+    @GetMapping("/list")
+    public BaseResponse<List<TeamVo>> searchTeamList(TeamQuery teamQuery, HttpServletRequest request) {
+        return teamService.searchTeamList(teamQuery,request);
+
+    }
+
+    @GetMapping("/list/{teamid}")
+    public BaseResponse<TeamVo> searchTeamListByTeamId(@PathVariable("teamid") Long teamid,HttpServletRequest request) {
+        return teamService.searchTeamListWithTeamUser(teamid,request);
+    }
+
 
     @GetMapping("/list/page")
     public BaseResponse<Page<Team>> searchTeamPage(@RequestParam("current") Long current, @RequestParam("pageSize") Long pageSize) {

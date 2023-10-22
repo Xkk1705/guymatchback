@@ -9,6 +9,7 @@ import com.xk.usercenter.model.domain.Team;
  */
 public interface TeamMapper extends BaseMapper<Team> {
 
+    void selectTeamUserByTeamId(Long teamid);
 }
 
 

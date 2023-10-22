@@ -1,5 +1,4 @@
 package com.xk.usercenter.model.request;
-
 import lombok.Data;
 
 import java.util.Date;
@@ -11,6 +10,11 @@ public class TeamQuery{
      * 队伍名称
      */
     private String teamName;
+
+    /**
+     * 密码
+     */
+    private String password;
 
     /**
      * 队伍描述
@@ -28,13 +32,12 @@ public class TeamQuery{
     private Date expireTime;
 
     /**
-     * 密码
+     * 创建人
      */
-    private String password;
+    private Long userid;
 
     /**
      * 队伍状态0-公开 1-私有 3-加密
      */
     private Integer teamStatus;
-
 }

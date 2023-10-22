@@ -24,4 +24,7 @@
         password,teamStatus,createTime,
         updateTime,isDelete
     </sql>
+    <select id="selectTeamUserByTeamId">
+
+    </select>
 </mapper>
