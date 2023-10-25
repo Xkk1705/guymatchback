@@ -290,7 +290,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         // 不能重复已加入的房间
         for (UserTeam userTeam : userTeams) {
             if (teamid == userTeam.getTeamid()) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR,"不能重复加入房间");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能重复加入房间");
             }
         }
         UserTeam userTeam = new UserTeam();
@@ -299,6 +299,82 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         userTeam.setJoinTime(new Date());
         boolean result = userTeamService.save(userTeam);
         return ResultUtil.success(result);
+    }
+
+    @Override
+    @Transactional
+    public BaseResponse<Boolean> quitTeam(Long teamid, User loginUser) {
+        Team team = this.getById(teamid);
+        if (team == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "没有查询到队伍信息");
+        }
+
+        long userId = loginUser.getId();
+        // 判断是否为队伍中的人
+        LambdaQueryWrapper<UserTeam> teamLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        teamLambdaQueryWrapper.eq(UserTeam::getTeamid, teamid);
+        teamLambdaQueryWrapper.eq(UserTeam::getUserid, userId);
+        UserTeam isAtTeam = userTeamService.getOne(teamLambdaQueryWrapper);
+        if (isAtTeam == null) {
+            throw new BusinessException(ErrorCode.NOT_AUTH, "没有权限");
+        }
+        LambdaQueryWrapper<UserTeam> queryWrapper = new LambdaQueryWrapper<>();
+        // 队伍只有一个人 解散队伍
+        queryWrapper.eq(UserTeam::getTeamid, teamid);
+        int count = userTeamService.count(queryWrapper);
+        if (count <= 1) {
+            boolean result = this.removeById(teamid);
+            if (!result) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+            }
+            queryWrapper.eq(UserTeam::getUserid, userId);
+            userTeamService.remove(queryWrapper);
+            return ResultUtil.success(result);
+        } else {
+            // 顺位队长位置 limit
+            queryWrapper.eq(UserTeam::getTeamid, teamid);
+//            queryWrapper.last("order by id limit 2");
+            List<UserTeam> userTeams = userTeamService.list(queryWrapper);
+            UserTeam nextUserMaster = userTeams.get(1);
+            // 移除队员信息  把队长顺位设置
+            LambdaQueryWrapper<UserTeam> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(UserTeam::getUserid, userId);
+            wrapper.eq(UserTeam::getTeamid, teamid);
+            boolean result = userTeamService.remove(wrapper);
+            if (!result) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+            }
+            team.setUserid(nextUserMaster.getUserid());
+            this.updateById(team);
+            return ResultUtil.success(result);
+        }
+    }
+
+    @Override
+    @Transactional
+    public BaseResponse<Boolean> deleteTeam(Long teamId, User loginUser) {
+        Team team = this.getById(teamId);
+        if (team == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "没有查询到该队伍信息");
+        }
+        long userId = loginUser.getId();
+        Long masterId = team.getUserid();
+        if (masterId != userId) {
+            throw new BusinessException(ErrorCode.NOT_AUTH);
+        }
+        // 删除关系表
+        LambdaQueryWrapper<UserTeam> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserTeam::getTeamid, teamId);
+        boolean result = userTeamService.remove(queryWrapper);
+        if (!result) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+        }
+        boolean isDelete = this.removeById(teamId);
+        if (!isDelete) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+        }
+        // 删除队伍表
+        return ResultUtil.success(isDelete);
     }
 
 

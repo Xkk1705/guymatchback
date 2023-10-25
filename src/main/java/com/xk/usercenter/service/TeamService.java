@@ -45,4 +45,20 @@ public interface TeamService extends IService<Team> {
     boolean updateTeam(TeamUpdateRequest teamUpdateRequest, HttpServletRequest request);
 
     BaseResponse<Boolean> joinTeam(Long teamid, String password, HttpServletRequest request);
+
+    /**
+     * 退出队伍
+     * @param teamid
+     * @param loginUser
+     * @return
+     */
+    BaseResponse<Boolean> quitTeam(Long teamid, User loginUser);
+
+    /**
+     * 队长解散队伍
+     * @param teamId
+     * @param loginUser
+     * @return
+     */
+    BaseResponse<Boolean> deleteTeam(Long teamId, User loginUser);
 }

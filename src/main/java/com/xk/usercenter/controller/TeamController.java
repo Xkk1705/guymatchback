@@ -41,15 +41,15 @@ public class TeamController {
     }
 
     @GetMapping("/delete")
-    public BaseResponse<Boolean> deleteTeam(Long id) {
-        if (id < 0) {
+    public BaseResponse<Boolean> deleteTeam(Long teamId,HttpServletRequest request) {
+        if (teamId < 0) {
             throw new BusinessException(ErrorCode.NULL_ERROR);
         }
-        boolean isDelete = teamService.removeById(id);
-        if (isDelete) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+        User loginUser = (User) request.getSession().getAttribute(USER_LOGIN_STATUS);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
         }
-        return ResultUtil.success(isDelete);
+        return teamService.deleteTeam(teamId,loginUser);
 
     }
 
@@ -90,6 +90,19 @@ public class TeamController {
         return teamService.searchTeamList(teamQueryRequest,request);
 
     }
+
+    @GetMapping("/quit")
+    public BaseResponse<Boolean> quitTeam(Long teamid,HttpServletRequest request) {
+        if (teamid == null || teamid < 0) {
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        User loginUser = (User) request.getSession().getAttribute(USER_LOGIN_STATUS);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        return teamService.quitTeam(teamid,loginUser);
+    }
+
 
     @GetMapping("/list/{teamid}")
     public BaseResponse<TeamVo> searchTeamListByTeamId(@PathVariable("teamid") Long teamid,HttpServletRequest request) {
