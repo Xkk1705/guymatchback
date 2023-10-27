@@ -22,7 +22,7 @@ server:
     context-path: /api
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     # 默认把数据库下划线字段改为驼峰
     map-underscore-to-camel-case: false
   global-config:

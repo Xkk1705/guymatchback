@@ -1,10 +1,12 @@
 package com.xk.usercenter.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.sun.org.apache.bcel.internal.generic.NEW;
 import com.xk.usercenter.common.BaseResponse;
 import com.xk.usercenter.common.ErrorCode;
 import com.xk.usercenter.common.ResultUtil;
@@ -12,6 +14,9 @@ import com.xk.usercenter.exception.BusinessException;
 import com.xk.usercenter.model.domain.User;
 import com.xk.usercenter.service.UserService;
 import com.xk.usercenter.mapper.UserMapper;
+import com.xk.usercenter.utils.MinDistanceUtils;
+import io.swagger.models.auth.In;
+import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -19,6 +24,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
+import sun.reflect.generics.tree.Tree;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -303,7 +309,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(ErrorCode.NOT_LOGIN);
         }
         long id = user.getId();
-        String key = "cache:xk:user:"+id;
+        String key = "cache:xk:user:" + id;
         ValueOperations<String, Object> operations = redisTemplate.opsForValue();
         Page<User> userList = (Page<User>) operations.get(key);
         if (operations.get(key) != null) {
@@ -311,8 +317,57 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         Page<User> userPage = new Page<>(currentPage, pageSize);
         userList = this.page(userPage, new QueryWrapper<>());
-        operations.set(key,userList, 5,TimeUnit.HOURS);
+        operations.set(key, userList, 5, TimeUnit.HOURS);
         return ResultUtil.success(userList);
+    }
+
+    @Override
+    public List<User> matchUserAndRecommend(int userNum, User loginUser) {
+        String tags = loginUser.getTags();
+        // 用户没有标签特征 随机返回userNum条数据
+        if (tags == null) {
+            return this.list().stream().map(this::getSafetyUser).limit(userNum).collect(Collectors.toList());
+        }
+        // 存出用户匹配分数和下标
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.isNotNull(User::getTags);
+        queryWrapper.select(User::getId, User::getTags);
+        List<User> userList = this.list(queryWrapper);
+        if (CollectionUtils.isEmpty(userList)) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "没有足够的数据匹配");
+        }
+        Gson gson = new Gson();
+        Type type = new TypeToken<List<String>>() {
+        }.getType();
+        List<String> tagList = gson.fromJson(tags, type);
+        List<Pair<Integer, Long>> userPairList = new ArrayList<>();
+        // 按照匹配分数升序排序
+//        SortedMap<Integer,Long> treeMap = new TreeMap<Integer,Long>((a,b) -> Math.toIntExact(a - b));
+        for (int i = 0; i < userList.size(); i++) {
+            User user = userList.get(i);
+            // 逻辑距离算法匹配相似分数
+            String userTags = user.getTags();
+            if (StringUtils.isBlank(userTags) || user.getId() == loginUser.getId()) {
+                continue;
+            }
+            List<String> userTagList = gson.fromJson(userTags, type);
+            long score = MinDistanceUtils.minDistanceList(tagList, userTagList);
+            // i-> 数组下标  score-> 匹配分数
+            userPairList.add(new Pair<>(i, score));
+        }
+        //按照分数升序排序
+        List<Integer> userSortedIndex = userPairList.stream().sorted((a, b) -> Math.toIntExact(a.getValue() - b.getValue()))
+                .map(Pair::getKey).limit(userNum).collect(Collectors.toList());
+        List<User> sortedUserList = new ArrayList<>();
+
+        for (Integer sortedIndex : userSortedIndex) {
+            long id = userList.get(sortedIndex).getId();
+            User user = this.getById(id);
+            // 脱敏
+            User safetyUser = this.getSafetyUser(user);
+            sortedUserList.add(safetyUser);
+        }
+        return sortedUserList;
     }
 
 

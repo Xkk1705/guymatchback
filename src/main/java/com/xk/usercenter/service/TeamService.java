@@ -61,4 +61,18 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     BaseResponse<Boolean> deleteTeam(Long teamId, User loginUser);
+
+    /**
+     * 获取当前用户加入的队伍
+     * @param request
+     * @return
+     */
+    BaseResponse<List<TeamVo>> getMyJoinTeam(HttpServletRequest request);
+
+    /**
+     * 获取用户创建的队伍
+     * @param request
+     * @return
+     */
+    BaseResponse<List<TeamVo>> getUserCreateTeam(HttpServletRequest request);
 }

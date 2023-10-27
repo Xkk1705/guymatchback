@@ -124,4 +124,15 @@ public class TeamController {
 
     }
 
+    @GetMapping("/my")
+    public BaseResponse<List<TeamVo>> getMyJoinTeam(HttpServletRequest request) {
+        return teamService.getMyJoinTeam(request);
+    }
+
+    @GetMapping("/mycreate")
+    public BaseResponse<List<TeamVo>> getUserCreateTeam(HttpServletRequest request) {
+        return teamService.getUserCreateTeam(request);
+    }
+
+
 }

@@ -85,4 +85,13 @@ public interface UserService extends IService<User> {
      * @return
      */
     BaseResponse<Page<User>> searchTageUserPage(int currentPage,int pageSize,HttpServletRequest request);
+
+
+    /**
+     * 根据用户标签推荐匹配的用户
+     * @param userNum 最大匹配人数
+     * @param loginUser 登录用户
+     * @return
+     */
+    List<User> matchUserAndRecommend(int userNum, User loginUser);
 }

@@ -11,6 +11,7 @@ import com.xk.usercenter.exception.BusinessException;
 import com.xk.usercenter.model.domain.User;
 import com.xk.usercenter.model.request.UserLoginRequest;
 import com.xk.usercenter.model.request.UserRegisterRequest;
+import com.xk.usercenter.model.vo.TeamVo;
 import com.xk.usercenter.service.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -188,6 +189,19 @@ public class UserController {
         return userService.searchTageUserPage(currentPage, pageSize, request);
     }
 
+
+    @GetMapping("/match")
+    public BaseResponse<List<User>> matchUserAndRecommend(int userNum, HttpServletRequest request) {
+        User loginUser = (User)request.getSession().getAttribute(USER_LOGIN_STATUS);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        if (userNum > 20 || userNum < 1) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"最大推荐用户再0-20之间");
+        }
+
+        return ResultUtil.success(userService.matchUserAndRecommend(userNum,loginUser));
+    }
 
     public boolean isAdmin(HttpServletRequest request) {
         //鉴权

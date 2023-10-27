@@ -3,6 +3,7 @@ package com.xk.usercenter.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.google.gson.Gson;
 import com.xk.usercenter.common.BaseResponse;
 import com.xk.usercenter.common.ErrorCode;
 import com.xk.usercenter.common.ResultUtil;
@@ -23,6 +24,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import springfox.documentation.spring.web.json.Json;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -30,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.xk.usercenter.constant.TeamContent.*;
 import static com.xk.usercenter.constant.UserConstant.ADMIN_ROLE;
@@ -375,6 +378,58 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         }
         // 删除队伍表
         return ResultUtil.success(isDelete);
+    }
+
+    @Override
+    public BaseResponse<List<TeamVo>> getMyJoinTeam(HttpServletRequest request) {
+        User loginUser = (User) request.getSession().getAttribute(USER_LOGIN_STATUS);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        LambdaQueryWrapper<UserTeam> userTeamLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        userTeamLambdaQueryWrapper.eq(UserTeam::getUserid, loginUser.getId());
+        // 去重
+
+        List<TeamVo> teamVoList = new ArrayList<>();
+        List<UserTeam> userTeamList = userTeamService.list(userTeamLambdaQueryWrapper).stream().distinct().collect(Collectors.toList());
+        for (UserTeam userTeam : userTeamList) {
+            if (userTeam == null) {
+                continue;
+            }
+            Long teamid = userTeam.getTeamid();
+            LambdaQueryWrapper<Team> teamLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            teamLambdaQueryWrapper.eq(teamid != null || teamid > 0, Team::getId, teamid);
+            Team team = this.getOne(teamLambdaQueryWrapper);
+            // 脱敏
+            TeamVo teamVo = new TeamVo();
+            BeanUtils.copyProperties(team,teamVo);
+            teamVoList.add(teamVo);
+        }
+        return ResultUtil.success(teamVoList);
+    }
+
+    @Override
+    public BaseResponse<List<TeamVo>> getUserCreateTeam(HttpServletRequest request) {
+        User loginUser = (User) request.getSession().getAttribute(USER_LOGIN_STATUS);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        long userId = loginUser.getId();
+        LambdaQueryWrapper<Team> teamLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        teamLambdaQueryWrapper.eq(Team::getUserid,userId);
+        List<Team> teamList = this.list(teamLambdaQueryWrapper);
+        List<TeamVo> teamVoList = new ArrayList<>();
+        for (Team team : teamList) {
+            if (team == null) {
+                continue;
+            }
+            // 脱敏
+            TeamVo teamVo = new TeamVo();
+            BeanUtils.copyProperties(team,teamVo);
+            teamVoList.add(teamVo);
+            //脱敏
+        }
+        return ResultUtil.success(teamVoList);
     }
 
 
