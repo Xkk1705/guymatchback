@@ -44,7 +44,12 @@ public class TeamVo {
     /**
      * 队伍人数
      */
-    private int count;
+    private Integer count;
+
+    /**
+     * 是否加入队伍
+     */
+    private Boolean hasJoinTeam;
 
 
     /**
@@ -61,6 +66,7 @@ public class TeamVo {
      * 创建人
      */
     private UserVo createUser;
+
 
     /**
      * 队伍成员

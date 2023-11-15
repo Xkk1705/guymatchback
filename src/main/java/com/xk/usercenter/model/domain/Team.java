@@ -50,7 +50,7 @@ public class Team implements Serializable {
     private String password;
 
     /**
-     * 队伍状态0-公开 1-私有 3-加密
+     * 队伍状态0-公开 1-加密 2-私有
      */
     private Integer teamStatus;
 

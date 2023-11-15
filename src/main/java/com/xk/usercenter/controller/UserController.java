@@ -1,7 +1,5 @@
 package com.xk.usercenter.controller;
 
-import java.util.Date;
-
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xk.usercenter.common.BaseResponse;
@@ -11,13 +9,13 @@ import com.xk.usercenter.exception.BusinessException;
 import com.xk.usercenter.model.domain.User;
 import com.xk.usercenter.model.request.UserLoginRequest;
 import com.xk.usercenter.model.request.UserRegisterRequest;
-import com.xk.usercenter.model.vo.TeamVo;
 import com.xk.usercenter.service.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,6 +26,7 @@ import static com.xk.usercenter.constant.UserConstant.USER_LOGIN_STATUS;
 
 @RestController
 @RequestMapping("/user")
+@CrossOrigin(origins = {"http://127.0.0.1:5173"})
 public class UserController {
     @Resource
     private UserService userService;
@@ -151,8 +150,11 @@ public class UserController {
      * @return User
      */
     @GetMapping("/current")
-    public BaseResponse<User> getCurrentUser(HttpServletRequest request) {
+    public BaseResponse<User> getCurrentUser(HttpServletRequest request ,HttpServletResponse response) {
         User currentUser = userService.isLogin(request);// 没有登录抛出异常 反之返回登录信息
+        if (currentUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
         // todo 校验用户是否合法
         User user = userService.getById(currentUser.getId());
         User safetyUser = userService.getSafetyUser(user);
@@ -171,9 +173,9 @@ public class UserController {
         String phone = user.getPhone();
         String email = user.getEmail();
         String tags = user.getTags();
-        if (StringUtils.isAllBlank(username, avatarUrl, gender.toString(), phone, email, tags)) {
-            throw new BusinessException(ErrorCode.NULL_ERROR);
-        }
+//        if (StringUtils.isAllBlank(username, avatarUrl, gender.toString(), phone, email, tags)) {
+//            throw new BusinessException(ErrorCode.NULL_ERROR);
+//        }
         User oldUser = userService.isLogin(request);
         return userService.updateUserMessage(user, oldUser);
 

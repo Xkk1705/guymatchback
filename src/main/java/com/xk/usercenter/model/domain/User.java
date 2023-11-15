@@ -17,7 +17,7 @@ public class User implements Serializable {
      * 主键id
      */
     @TableId(type = IdType.AUTO)
-    private long id;
+    private Long id;
 
     /**
      * 用户名
@@ -40,6 +40,11 @@ public class User implements Serializable {
     private Integer gender;
 
     /**
+     * 用户简介
+     */
+    private String profile;
+
+    /**
      * 密码
      */
     private String userPassword;
@@ -58,11 +63,6 @@ public class User implements Serializable {
      * 用户状态  0-正常
      */
     private Integer userStatus;
-
-    /**
-     * 用户 json 标签
-     */
-    private String tags;
 
     /**
      * 创建时间
@@ -89,6 +89,11 @@ public class User implements Serializable {
      * 星球编号
      */
     private String planetCode;
+
+    /**
+     * 标签列表
+     */
+    private String tags;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

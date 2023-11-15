@@ -71,6 +71,15 @@ class UserCenterApplicationTests {
         System.out.println(i);
     }
 
+    @Test
+    void testSearchUserBytags() {
+        List<String> list = new ArrayList<>();
+        list.add("篮球");
+        List<User> users = userService.searchUserByTags(list);
+        System.out.println(users.size());
+    }
+
+
 
 
 

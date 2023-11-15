@@ -28,10 +28,7 @@ import springfox.documentation.spring.web.json.Json;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.xk.usercenter.constant.TeamContent.*;
@@ -147,6 +144,13 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (CollectionUtils.isEmpty(teamList)) {
             return ResultUtil.success(new ArrayList<>());
         }
+        // 用户是否加入队伍
+        User loginUser = (User) request.getSession().getAttribute(USER_LOGIN_STATUS);
+        LambdaQueryWrapper<UserTeam> userTeamLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        userTeamLambdaQueryWrapper.eq(loginUser!=null,UserTeam::getUserid,loginUser.getId());
+        List<UserTeam> hasJoinUserTeams = userTeamService.list(userTeamLambdaQueryWrapper);
+        Set<Long> hasJoinTeamIds = hasJoinUserTeams.stream().map(UserTeam::getTeamid).collect(Collectors.toSet());
+
         for (Team team : teamList) {
             Long createUserId = team.getUserid();
             if (createUserId == null) {
@@ -156,6 +160,17 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             // 脱敏
             TeamVo teamVo = new TeamVo();
             UserVo userVo = new UserVo();
+            // 设置是否加入队伍标志
+            Long teamId = team.getId();
+            if (hasJoinTeamIds.contains(teamId)) {
+                teamVo.setHasJoinTeam(true);
+            }
+            // 查询每个队伍的人数
+            LambdaQueryWrapper<UserTeam> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(teamId!=null,UserTeam::getTeamid,teamId);
+            int count = userTeamService.count(queryWrapper);
+            // 设置每个队伍人数
+            teamVo.setCount(count);
             BeanUtils.copyProperties(team, teamVo);
             BeanUtils.copyProperties(createUser, userVo);
             teamVo.setCreateUser(userVo);
@@ -183,7 +198,12 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "没有权限查看私密队伍");
             }
         }
+        // 查询队长信息
+        UserVo createUserVo = new UserVo();
+        User createUser = userService.getById(team.getUserid());
+        BeanUtils.copyProperties(createUser,createUserVo);
         TeamVo teamVo = new TeamVo();
+        teamVo.setCreateUser(createUserVo);
         BeanUtils.copyProperties(team, teamVo);
         List<UserVo> userList = new ArrayList<>();
         //select *
@@ -199,6 +219,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             Long userid = userTeam.getUserid();
             if (userid == null) {
                 continue;
+            }
+            if (userid.equals(loginUser.getId())) {
+                teamVo.setHasJoinTeam(true);
             }
             UserVo userVo = new UserVo();
             User user = userService.getById(userid);
@@ -228,7 +251,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             throw new BusinessException(ErrorCode.NULL_ERROR, "没查询到所在队伍");
         }
         // 创建者和管理员才能修改房间信息
-        if (team.getUserid() != loginUser.getId() && loginUser.getUserRole() != ADMIN_ROLE) {
+        if (!Objects.equals(team.getUserid(), loginUser.getId()) && loginUser.getUserRole() != ADMIN_ROLE) {
             throw new BusinessException(ErrorCode.NOT_AUTH, "没有权限修改房间");
         }
         Integer teamStatus = teamUpdateRequest.getTeamStatus();
@@ -260,15 +283,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (team.getExpireTime().before(new Date())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该房间已经过期");
         }
-        // 不能加入已满的房间
-        // todo 加入房间需要加锁 可能多个用户同时查到未满人数
-        LambdaQueryWrapper<UserTeam> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(UserTeam::getTeamid, teamid);
-        int joinTeamNum = userTeamService.count(queryWrapper);
-        Integer teamMaxNum = team.getTeamMaxNum();
-        if (joinTeamNum >= teamMaxNum) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该房间已满");
-        }
         // 不是管理员加入不了私密房间
         Integer teamStatus = team.getTeamStatus();
         if (teamStatus == PRIVATE) {
@@ -282,26 +296,37 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "房间密码不正确");
             }
         }
-        LambdaQueryWrapper<UserTeam> wrapper = new LambdaQueryWrapper<>();
-        long userid = loginUser.getId();
-        // 用户最多加入5个队伍
-        wrapper.eq(UserTeam::getUserid, userid);
-        List<UserTeam> userTeams = userTeamService.list(wrapper);
-        if (userTeams.size() >= 5) {
-            throw new BusinessException(ErrorCode.NOT_AUTH, "非VIP用户最多加入5个队伍");
-        }
-        // 不能重复已加入的房间
-        for (UserTeam userTeam : userTeams) {
-            if (teamid == userTeam.getTeamid()) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能重复加入房间");
+        // 不能加入已满的房间
+        //  加入房间需要加锁 可能多个用户同时查到未满人数
+        LambdaQueryWrapper<UserTeam> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserTeam::getTeamid, teamid);
+        synchronized (this) {
+            int joinTeamNum = userTeamService.count(queryWrapper);
+            Integer teamMaxNum = team.getTeamMaxNum();
+            if (joinTeamNum >= teamMaxNum) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "该房间已满");
             }
+            LambdaQueryWrapper<UserTeam> wrapper = new LambdaQueryWrapper<>();
+            long userid = loginUser.getId();
+            // 用户最多加入5个队伍
+            wrapper.eq(UserTeam::getUserid, userid);
+            List<UserTeam> userTeams = userTeamService.list(wrapper);
+            if (userTeams.size() >= 5) {
+                throw new BusinessException(ErrorCode.NOT_AUTH, "非VIP用户最多加入5个队伍");
+            }
+            // 不能重复已加入的房间
+            for (UserTeam userTeam : userTeams) {
+                if (teamid.equals(userTeam.getTeamid())) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能重复加入房间");
+                }
+            }
+            UserTeam userTeam = new UserTeam();
+            userTeam.setUserid(userid);
+            userTeam.setTeamid(teamid);
+            userTeam.setJoinTime(new Date());
+            boolean result = userTeamService.save(userTeam);
+            return ResultUtil.success(result);
         }
-        UserTeam userTeam = new UserTeam();
-        userTeam.setUserid(userid);
-        userTeam.setTeamid(teamid);
-        userTeam.setJoinTime(new Date());
-        boolean result = userTeamService.save(userTeam);
-        return ResultUtil.success(result);
     }
 
     @Override
@@ -398,11 +423,17 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             }
             Long teamid = userTeam.getTeamid();
             LambdaQueryWrapper<Team> teamLambdaQueryWrapper = new LambdaQueryWrapper<>();
-            teamLambdaQueryWrapper.eq(teamid != null || teamid > 0, Team::getId, teamid);
+            teamLambdaQueryWrapper.eq(teamid != null && teamid > 0, Team::getId, teamid);
             Team team = this.getOne(teamLambdaQueryWrapper);
             // 脱敏
             TeamVo teamVo = new TeamVo();
             BeanUtils.copyProperties(team,teamVo);
+            teamVo.setHasJoinTeam(true);
+            // 查询创建人信息
+            User createUser = userService.getById(team.getUserid());
+            UserVo safetyCreateUser = new UserVo();
+            BeanUtils.copyProperties(createUser,safetyCreateUser);
+            teamVo.setCreateUser(safetyCreateUser);
             teamVoList.add(teamVo);
         }
         return ResultUtil.success(teamVoList);
@@ -425,6 +456,12 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             }
             // 脱敏
             TeamVo teamVo = new TeamVo();
+            // 查询创建人信息
+            teamVo.setHasJoinTeam(true);
+            User createUser = userService.getById(team.getUserid());
+            UserVo userCreateUser = new UserVo();
+            BeanUtils.copyProperties(createUser,userCreateUser);
+            teamVo.setCreateUser(userCreateUser);
             BeanUtils.copyProperties(team,teamVo);
             teamVoList.add(teamVo);
             //脱敏

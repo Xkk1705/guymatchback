@@ -28,6 +28,8 @@ public interface TeamService extends IService<Team> {
 
     /**
      * 根据条件模糊查询队伍
+     * 判断用户是否已经加入队伍
+     * 队伍中有多少人
      * @param teamQueryRequest
      * @param request
      * @return

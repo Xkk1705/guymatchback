@@ -8,6 +8,7 @@ import com.xk.usercenter.common.ResultUtil;
 import com.xk.usercenter.exception.BusinessException;
 import com.xk.usercenter.model.domain.Team;
 import com.xk.usercenter.model.domain.User;
+import com.xk.usercenter.model.request.JoinTeamRequest;
 import com.xk.usercenter.model.request.TeamQueryRequest;
 import com.xk.usercenter.model.request.TeamUpdateRequest;
 import com.xk.usercenter.model.vo.TeamVo;
@@ -23,6 +24,7 @@ import static com.xk.usercenter.constant.UserConstant.USER_LOGIN_STATUS;
 
 @RestController
 @RequestMapping("/team")
+@CrossOrigin(origins = {"http://127.0.0.1:5173"})
 public class TeamController {
 
     @Resource
@@ -54,12 +56,11 @@ public class TeamController {
     }
 
     @GetMapping("/get")
-    public BaseResponse<Team> getById(Long id) {
+    public BaseResponse<TeamVo> getById(Long id,HttpServletRequest request) {
         if (id<0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        Team team = teamService.getById(id);
-        return ResultUtil.success(team);
+        return teamService.searchTeamListWithTeamUser(id,request);
 
     }
 
@@ -78,7 +79,9 @@ public class TeamController {
     }
 
     @PostMapping("/jointeam")
-    public BaseResponse<Boolean> joinTeam(Long teamid,String password,HttpServletRequest request) {
+    public BaseResponse<Boolean> joinTeam(@RequestBody JoinTeamRequest joinTeamRequest, HttpServletRequest request) {
+        Long teamid = joinTeamRequest.getTeamId();
+        String password = joinTeamRequest.getPassword();
         if (teamid == null || teamid < 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }

@@ -42,6 +42,7 @@ public class InsertUserDateTest {
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
         int j = 0;
+
         for (int i = 1; i <= 10; i++) {
                 while (true){
                     j++;

@@ -16,6 +16,11 @@ public class UserVo {
     private String username;
 
     /**
+     * 用户简介
+     */
+    private String profile;
+
+    /**
      * 登录账号
      */
     private String userAccount;

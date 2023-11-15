@@ -20,6 +20,7 @@ import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -46,8 +47,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Resource
     private UserMapper userMapper;
 
+
     @Resource
-    private RedisTemplate<String, Object> redisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
 
 
     public static final String SLAT = "xukang";
@@ -182,6 +184,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         safetyUser.setPlanetCode(orginUser.getPlanetCode());
         safetyUser.setUserRole(orginUser.getUserRole());
         safetyUser.setTags(orginUser.getTags());
+        safetyUser.setProfile(orginUser.getProfile());
         return safetyUser;
     }
 
@@ -232,10 +235,31 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (CollectionUtils.isEmpty(tagNameList)) {
             throw new BusinessException(ErrorCode.NULL_ERROR);
         }
-        List<User> users = this.list();
+        StringBuilder stringBuilder = new StringBuilder();
+        for (String s : tagNameList) {
+            stringBuilder.append(s);
+        }
         Gson gson = new Gson();
-        Type type = new TypeToken<List<String>>() {
+        Type type1 = new TypeToken<List<User>>() {
         }.getType();
+        // 判断是否命中缓存
+        String tagsUserKey = "tags:user:key:" + stringBuilder;
+        String redisUserTagJson = stringRedisTemplate.opsForValue().get(tagsUserKey);
+        if (StringUtils.isNotBlank(redisUserTagJson)) {// 有缓存 不为null ''
+            List<User> usrList = gson.fromJson(redisUserTagJson, type1);
+            return usrList;
+        }
+        // 缓存穿透 返回空值
+        if ("".equals(redisUserTagJson)) {
+            return null;
+        }
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.select(User::getUsername, User::getProfile, User::getAvatarUrl, User::getTags);
+//        List<User> users = this.list();
+        // 限制20便于测试
+        List<User> users = this.list(queryWrapper).stream().limit(20).collect(Collectors.toList());
+
+
 //        List<User> userList = users.stream().filter(user -> {
 //            String tagStr = user.getTags();
 //            if (StringUtils.isBlank( tagStr)) {
@@ -249,7 +273,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 //            }
 //            return true;
 //        }).map((this::getSafetyUser)).collect(Collectors.toList());
-
+        Type type = new TypeToken<List<String>>() {
+        }.getType();
         List<User> userList = new ArrayList<>();
         for (User user : users) {
             String tagStr = user.getTags();
@@ -270,6 +295,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 }
             }
         }
+        String userTagListJson = gson.toJson(userList);
+        stringRedisTemplate.opsForValue().set(tagsUserKey, userTagListJson, 5, TimeUnit.HOURS);
         return userList;
     }
 
@@ -286,7 +313,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public BaseResponse<Integer> updateUserMessage(User user, User oldUser) {
         long id = user.getId();
-        if (user.getId() < 0) {
+        if (id < 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         // 是否为管理员
@@ -295,7 +322,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             return ResultUtil.success(count);
         }
         // 是否为当前用户
-        if (oldUser.getId() != user.getId()) {
+        if (!Objects.equals(oldUser.getId(), user.getId())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         int count = userMapper.updateById(user);
@@ -310,14 +337,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         long id = user.getId();
         String key = "cache:xk:user:" + id;
-        ValueOperations<String, Object> operations = redisTemplate.opsForValue();
-        Page<User> userList = (Page<User>) operations.get(key);
-        if (operations.get(key) != null) {
+        ValueOperations<String, String> stringStringValueOperations = stringRedisTemplate.opsForValue();
+        String userListJson = stringStringValueOperations.get(key);
+        Gson gson = new Gson();
+        Page<User> userList = gson.fromJson(userListJson, Page.class);
+        if (stringStringValueOperations.get(key) != null) {
             return ResultUtil.success(userList);
         }
         Page<User> userPage = new Page<>(currentPage, pageSize);
         userList = this.page(userPage, new QueryWrapper<>());
-        operations.set(key, userList, 5, TimeUnit.HOURS);
+        String userListJsonRes = gson.toJson(userList);
+        stringStringValueOperations.set(key, userListJsonRes, 5, TimeUnit.HOURS);
         return ResultUtil.success(userList);
     }
 
